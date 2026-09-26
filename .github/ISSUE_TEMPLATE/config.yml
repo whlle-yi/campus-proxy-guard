@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题
+    url: https://github.com/whlle-yi/campus-proxy-guard#readme
+    about: 安装/配置问题请先阅读 README 的「给使用者」与配置说明章节。

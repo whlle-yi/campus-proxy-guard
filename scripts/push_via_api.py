@@ -66,6 +66,12 @@ def main() -> int:
     tree = call(f"{api}/trees", token, {"tree": tree_entries})
 
     parent = call(f"{api}/ref/heads/{branch}", token)["object"]["sha"]
+
+    # 幂等: 远端最新提交的内容树与本地一致时无需推送, 避免产生重复快照
+    if call(f"{api}/commits/{parent}", token)["tree"]["sha"] == tree["sha"]:
+        print("远端已是最新内容, 跳过推送")
+        return 0
+
     message = subprocess.check_output(["git", "log", "-1", "--pretty=%B"], text=True)
     commit = call(f"{api}/commits", token, {"message": message, "tree": tree["sha"],
                                             "parents": [parent]})

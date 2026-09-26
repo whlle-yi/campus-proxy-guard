@@ -37,7 +37,7 @@ def on_campus(cfg: Config, ssid: str | None = None, gateway: str | None = None,
     ip_prefixes = tuple(cfg.campus_local_ip_prefixes)
 
     if not (ssids or gw_prefixes or ip_prefixes):
-        return True, "未配置校园网特征, 按任意网络均监测处理"
+        return False, "未配置校园网特征, 暂不监测(请在设置中填写)"
 
     if ssid is None:
         ssid = get_wifi_ssid()

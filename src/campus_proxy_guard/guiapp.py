@@ -22,7 +22,7 @@ except ImportError:
 
 from . import __version__
 from .autostart import autostart_enabled, autostart_set
-from .config import load_config, save_config
+from .config import Config, load_config, save_config
 from .detector import detect_proxy, on_campus
 from .netinfo import get_default_gateway, get_local_ips, get_wifi_ssid
 from .notifier import log_dir, setup_logging, warn
@@ -143,7 +143,7 @@ class GuardApp:
         ttk.Separator(w).pack(fill="x", pady=8)
 
         box = ttk.LabelFrame(
-            w, text="校园网识别特征 (逗号分隔, 任一命中即算校园网; 全空=任意网络都监测)")
+            w, text="校园网识别特征 (逗号分隔, 任一命中即算校园网; 全空=不监测)")
         box.pack(fill="x", **pad)
         self.var_ssids = tk.StringVar()
         self.var_gw = tk.StringVar()
@@ -206,7 +206,9 @@ class GuardApp:
             return
         text, color = self.status_text()
         self.lbl_status.config(text=text, fg=color)
-        lines = [
+        why = self.state.get("why") or ""
+        lines = [f"判定依据   : {why}" if why else "判定依据   : 非校园网(或未配置特征)"]
+        lines += [
             f"Wi-Fi SSID : {get_wifi_ssid() or '(无)'}",
             f"默认网关   : {get_default_gateway() or '(无)'}",
             f"本机 IP    : {', '.join(get_local_ips()) or '(无)'}",
@@ -239,27 +241,29 @@ class GuardApp:
             self.window.after(4000, lambda: self.lbl_msg.config(text=""))
 
     # --- 按钮动作 ---
-    def save_settings(self) -> None:
+    def _fields_to_config(self, cfg: Config) -> Config:
         def split(s: str) -> list[str]:
             # 兼容中英文逗号/顿号/分号分隔
             import re
             return [x.strip() for x in re.split(r"[,，、;；]", s) if x.strip()]
 
-        cfg = load_config()
+        cfg.campus_ssids = split(self.var_ssids.get())
+        cfg.campus_gateway_prefixes = split(self.var_gw.get())
+        cfg.campus_local_ip_prefixes = split(self.var_ip.get())
+        cfg.check_system_proxy = self.var_sys.get()
+        cfg.check_env_proxy = self.var_env.get()
+        cfg.check_processes = self.var_proc.get()
+        cfg.check_ports = self.var_port.get()
+        cfg.check_interval_seconds = int(self.var_interval.get())
+        cfg.warn_interval_seconds = int(self.var_warn_interval.get())
+        cfg.popup_dialog = self.var_popup.get()
+        cfg.auto_disable_system_proxy = self.var_disable_proxy.get()
+        cfg.auto_kill = self.var_kill.get()
+        return cfg
+
+    def save_settings(self) -> None:
         try:
-            cfg.campus_ssids = split(self.var_ssids.get())
-            cfg.campus_gateway_prefixes = split(self.var_gw.get())
-            cfg.campus_local_ip_prefixes = split(self.var_ip.get())
-            cfg.check_system_proxy = self.var_sys.get()
-            cfg.check_env_proxy = self.var_env.get()
-            cfg.check_processes = self.var_proc.get()
-            cfg.check_ports = self.var_port.get()
-            cfg.check_interval_seconds = int(self.var_interval.get())
-            cfg.warn_interval_seconds = int(self.var_warn_interval.get())
-            cfg.popup_dialog = self.var_popup.get()
-            cfg.auto_disable_system_proxy = self.var_disable_proxy.get()
-            cfg.auto_kill = self.var_kill.get()
-            save_config(cfg)
+            save_config(self._fields_to_config(load_config()))
         except (OSError, ValueError) as e:
             messagebox.showerror("保存失败", str(e), parent=self.window)
             return
@@ -269,6 +273,12 @@ class GuardApp:
         if self.state["paused"]:
             self.flash_msg("监测已暂停, 先恢复监测")
             return
+        try:
+            # 输入框内容先落盘再检测, 避免"输了没保存导致检测仍旧配置"的困惑
+            save_config(self._fields_to_config(load_config()))
+        except (OSError, ValueError) as e:
+            messagebox.showerror("设置无效", str(e), parent=self.window)
+            return
         cfg = load_config()
         campus, _why = on_campus(cfg)
         hits = detect_proxy(cfg) if campus else []
@@ -277,7 +287,7 @@ class GuardApp:
         self.refresh_ui()
         if campus and hits:
             warn(hits, cfg)
-        self.flash_msg("已重新检测" + (", 发现违规!" if campus and hits else ""))
+        self.flash_msg("已按当前输入保存并重新检测" + (", 发现违规!" if campus and hits else ""))
 
     def toggle_pause(self, _item=None, _icon=None) -> None:
         self.state["paused"] = not self.state["paused"]

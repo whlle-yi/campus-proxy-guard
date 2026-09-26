@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "campus-proxy-guard"
-version = "1.0.0"
+version = "1.0.4"
 description = "校园网代理卫士: 连接校园网时检测到本机开启代理立即弹窗警告 / Warn when a proxy is active on campus network (Windows)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,7 +28,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=5.0",
     "ruff>=0.6",
+    "mypy>=1.10",
     "pyinstaller>=6.0",
 ]
 
@@ -41,10 +43,14 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.coverage.run]
+source = ["src/campus_proxy_guard"]
+omit = ["*/__main__.py"]
+
 [tool.ruff]
 line-length = 110
 target-version = "py310"
-src = ["src", "tests"]
+src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
@@ -57,3 +63,19 @@ known-first-party = ["campus_proxy_guard"]
 "tests/*" = ["W291"]
 # PowerShell Toast 模板为原样字符串, 无法换行
 "src/campus_proxy_guard/notifier.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+check_untyped_defs = true
+warn_unused_ignores = false
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = ["psutil", "psutil.*", "pystray", "pystray.*", "PIL", "PIL.*"]
+ignore_missing_imports = true
+
+# tkinter 存根对 **kwargs 与动态控件赋值的噪音告警, 按惯例对 UI 层放宽
+[[tool.mypy.overrides]]
+module = "campus_proxy_guard.guiapp"
+disable_error_code = ["arg-type", "assignment", "union-attr", "var-annotated"]

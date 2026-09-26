@@ -80,7 +80,7 @@ def get_local_ips() -> list[str]:
             hostname = socket.gethostname()
             for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
                 ip = info[4][0]
-                if not ip.startswith("127.") and ip not in ips:
+                if isinstance(ip, str) and not ip.startswith("127.") and ip not in ips:
                     ips.append(ip)
         except OSError:
             pass

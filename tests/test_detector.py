@@ -64,9 +64,10 @@ class TestOnCampus:
                            ips=["192.168.1.7"])
         assert not hit
 
-    def test_empty_config_matches_any_network(self):
+    def test_empty_config_matches_nothing(self):
+        # 未配置特征 = 不监测(首次安装不应误报)
         hit, why = on_campus(make(), ssid="anything", gateway="1.2.3.4", ips=[])
-        assert hit and "未配置" in why
+        assert not hit and "未配置" in why
 
 
 class TestIsLocalListen:

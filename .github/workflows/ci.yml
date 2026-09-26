@@ -21,8 +21,10 @@ jobs:
         run: pip install -e .[dev]
       - name: Lint
         run: ruff check .
-      - name: Test
-        run: pytest -v
+      - name: Type check
+        run: mypy src
+      - name: Test (with coverage)
+        run: pytest --cov=campus_proxy_guard --cov-report=term-missing
 
   release:
     needs: test
@@ -40,7 +42,7 @@ jobs:
           pyinstaller --noconsole --onefile --clean
           --name CampusProxyGuard
           --icon icon.ico
-          launcher.py
+          scripts/launcher.py
       - name: Package zip
         run: |
           Copy-Item README.md dist\
