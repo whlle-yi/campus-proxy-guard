@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.9] - 2026-09-26
+
+### 优化
+- 主窗口高度随内容自适应, 消除底部空白
+- 精简界面文案, 移除括号内的解释性说明(细节见 docs/CONFIG.md)
+
 ## [1.0.8] - 2026-09-26
 
 ### 修复

@@ -149,12 +149,14 @@ class GuardApp:
             return
         self.window = tk.Toplevel(self.root)
         self.window.title(f"校园网代理卫士 v{__version__}")
-        self.window.geometry("540x780")
+        self.window.geometry("540x760")
         self.window.resizable(False, False)
         self.window.protocol("WM_DELETE_WINDOW", self.window.withdraw)
         self.build_window(self.window)
         self.update_window_labels()
         self.load_settings_fields()
+        self.window.update_idletasks()
+        self.window.geometry("")  # 高度随内容自适应, 消除底部空白
 
     def build_window(self, w: tk.Toplevel) -> None:
         pad = {"padx": 14, "pady": 4}
@@ -168,7 +170,7 @@ class GuardApp:
         ttk.Separator(w).pack(fill="x", pady=8)
 
         box = ttk.LabelFrame(
-            w, text="校园网识别特征 (逗号分隔, 任一命中即算校园网; 全空=不监测)")
+            w, text="校园网识别特征")
         box.pack(fill="x", **pad)
         self.var_ssids = tk.StringVar()
         self.var_gw = tk.StringVar()
@@ -194,7 +196,7 @@ class GuardApp:
             ttk.Checkbutton(box2, text=text, variable=var).grid(
                 row=0, column=col, padx=8, pady=5)
 
-        box3 = ttk.LabelFrame(w, text="学校网站保护 (代理访问学校域名时警告, 与所在网络无关)")
+        box3 = ttk.LabelFrame(w, text="学校网站保护")
         box3.pack(fill="x", **pad)
         self.var_school = tk.BooleanVar()
         ttk.Checkbutton(box3, text="启用", variable=self.var_school)\
@@ -232,7 +234,7 @@ class GuardApp:
         ttk.Checkbutton(box4, text="校园网违规时自动关闭系统代理", variable=self.var_disable_proxy)\
             .grid(row=2, column=0, columnspan=2, sticky="w", padx=8)
         self.var_kill = tk.BooleanVar()
-        ttk.Checkbutton(box4, text="校园网违规时自动结束代理进程 (慎用!)", variable=self.var_kill)\
+        ttk.Checkbutton(box4, text="校园网违规时自动结束代理进程 (慎用)", variable=self.var_kill)\
             .grid(row=2, column=2, columnspan=2, sticky="w", padx=8)
 
         btns = tk.Frame(w)
@@ -253,7 +255,7 @@ class GuardApp:
         text, color = self.status_text()
         self.lbl_status.config(text=text, fg=color)
         why = self.state.get("why") or ""
-        lines = [f"判定依据   : {why}" if why else "判定依据   : 非校园网(或未配置特征)"]
+        lines = [f"判定依据   : {why}" if why else "判定依据   : 非校园网"]
         lines += [
             f"Wi-Fi SSID : {get_wifi_ssid() or '(无)'}",
             f"默认网关   : {get_default_gateway() or '(无)'}",
@@ -265,7 +267,7 @@ class GuardApp:
         elif self.state["campus"]:
             lines.append("代理信号: 未检测到")
         else:
-            lines.append("代理信号: 不参与判定(校园网防线仅在校园网生效)")
+            lines.append("代理信号: 不参与判定")
         if self.state["school"]:
             lines.append("学校网站保护信号:")
             lines += [f"  - {h}" for h in self.state["school"]]
