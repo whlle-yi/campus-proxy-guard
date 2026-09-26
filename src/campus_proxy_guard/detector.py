@@ -4,9 +4,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
+import urllib.request
 from pathlib import Path
 
 try:
@@ -208,3 +210,90 @@ def disable_system_proxy() -> None:
     internet_set_option = ctypes.windll.wininet.InternetSetOptionW
     internet_set_option(None, 39, None, 0)  # INTERNET_OPTION_SETTINGS_CHANGED
     internet_set_option(None, 37, None, 0)  # INTERNET_OPTION_REFRESH
+
+
+# ---------------------------------------------------------------------------
+# 学校网站保护: 代理访问学校域名(与是否在校园网无关)
+# ---------------------------------------------------------------------------
+
+def domain_matches(domain: str, patterns: list[str]) -> bool:
+    """域名与模式列表匹配(精确或子域; " *.example.com" 通配视为 example.com 及其子域)。"""
+    domain = domain.lower().rstrip(".")
+    for pat in patterns:
+        p = pat.lower().strip().lstrip(".")
+        if not p:
+            continue
+        if p.startswith("*."):
+            p = p[1:].lstrip(".")
+        if domain == p or domain.endswith("." + p):
+            return True
+    return False
+
+
+def _get_system_proxy_state() -> tuple[bool, str]:
+    """返回 (系统代理是否开启, ProxyOverride 绕过列表原文)。"""
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, SYSTEM_PROXY_KEY) as k:
+            enabled, _ = winreg.QueryValueEx(k, "ProxyEnable")
+            try:
+                override, _ = winreg.QueryValueEx(k, "ProxyOverride")
+            except FileNotFoundError:
+                override = ""
+            return bool(enabled), override
+    except OSError:
+        return False, ""
+
+
+def school_domains_at_risk(enabled: bool, override: str | None,
+                           domains: list[str]) -> list[str]:
+    """纯函数: 系统代理开启时, 未被绕过列表放行的学校域名。"""
+    if not enabled:
+        return []
+    patterns = (override or "").split(";")
+    return [d for d in domains if not domain_matches(d, patterns)]
+
+
+def parse_clash_connections(data: dict, domains: list[str]) -> list[str]:
+    """纯函数: 从 Clash /connections 响应中找出访问学校域名的活动连接。"""
+    matched: set[str] = set()
+    for conn in data.get("connections") or []:
+        meta = conn.get("metadata") if isinstance(conn, dict) else None
+        if not isinstance(meta, dict):
+            continue
+        host = (meta.get("host") or meta.get("sniffHost") or "").lower()
+        if host and domain_matches(host, domains):
+            dst = meta.get("destinationIP") or ""
+            matched.add(f"{host}" + (f"({dst})" if dst and dst != host else ""))
+    return sorted(matched)
+
+
+def check_school_sites(cfg: Config) -> list[str]:
+    """检测代理是否正在/将要接管学校域名流量, 返回信号列表。"""
+    domains = [d for d in cfg.school_domains if d.strip()]
+    if not domains:
+        return []
+    hits: list[str] = []
+
+    # 1) 系统代理形态: 代理开启且学校域名未被绕过 -> 学校网站流量必然经代理
+    if cfg.check_system_proxy:
+        enabled, override = _get_system_proxy_state()
+        risky = school_domains_at_risk(enabled, override, domains)
+        if risky:
+            hits.append("系统代理已开启且未放行学校域名: " + ", ".join(risky))
+
+    # 2) Clash/Mihomo 客户端形态: 查询实时连接(对 TUN 模式同样有效)
+    if cfg.clash_api_url:
+        try:
+            headers = {"Authorization": f"Bearer {cfg.clash_api_secret}"} \
+                if cfg.clash_api_secret else {}
+            req = urllib.request.Request(
+                cfg.clash_api_url.rstrip("/") + "/connections", headers=headers)
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                matched = parse_clash_connections(json.load(resp), domains)
+            if matched:
+                hits.append("检测到经代理访问学校域名: " + ", ".join(matched))
+        except (OSError, ValueError, json.JSONDecodeError):
+            pass  # 客户端未运行/无 API/鉴权失败, 静默跳过
+
+    return hits

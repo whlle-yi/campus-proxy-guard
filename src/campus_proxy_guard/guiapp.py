@@ -23,7 +23,7 @@ except ImportError:
 from . import __version__
 from .autostart import autostart_enabled, autostart_set
 from .config import Config, load_config, save_config
-from .detector import detect_proxy, on_campus
+from .detector import check_school_sites, detect_proxy, on_campus
 from .netinfo import get_default_gateway, get_local_ips, get_wifi_ssid
 from .notifier import log_dir, setup_logging, warn
 
@@ -48,7 +48,8 @@ def make_icon(color: str) -> "Image.Image":
 
 class GuardApp:
     def __init__(self) -> None:
-        self.state = {"campus": None, "hits": [], "why": "", "paused": False}
+        self.state = {"campus": None, "hits": [], "why": "", "paused": False,
+                      "school": []}
         self.stop_event = threading.Event()
         self.root = tk.Tk()
         self.root.withdraw()
@@ -63,6 +64,7 @@ class GuardApp:
     # --- 监测循环 ---
     def monitor_loop(self) -> None:
         last_warn = 0.0
+        last_school_warn = 0.0
         while not self.stop_event.is_set():
             try:
                 cfg = load_config()  # 每轮重读, 设置保存后即时生效
@@ -70,9 +72,19 @@ class GuardApp:
                     campus, why = on_campus(cfg)
                     hits = detect_proxy(cfg) if campus else []
                     self.state.update(campus=campus, hits=hits, why=why)
-                    if campus and hits and time.time() - last_warn >= cfg.warn_interval_seconds:
+                    now = time.time()
+                    if campus and hits and now - last_warn >= cfg.warn_interval_seconds:
                         warn(hits, cfg)
-                        last_warn = time.time()
+                        last_warn = now
+                    # 学校网站保护: 与是否在校园网无关
+                    if cfg.check_school_sites:
+                        school = check_school_sites(cfg)
+                        if school and now - last_school_warn >= cfg.warn_interval_seconds:
+                            warn(school, cfg, school_site=True)
+                            last_school_warn = now
+                    else:
+                        school = []
+                    self.state["school"] = school
             except Exception:
                 logger.exception("监测轮询异常(继续运行)")
             self.refresh_ui()
@@ -85,6 +97,8 @@ class GuardApp:
             return "监测已暂停", COLOR_PAUSE
         if self.state["campus"] is None:
             return "检测中…", COLOR_PAUSE
+        if self.state["school"]:
+            return "⚠ 代理正在访问学校网站!", COLOR_ALERT
         if self.state["campus"] and self.state["hits"]:
             return "⚠ 校园网 + 代理 = 违规!", COLOR_ALERT
         if self.state["campus"]:
@@ -97,7 +111,7 @@ class GuardApp:
     def icon_key(self) -> str:
         if self.state["paused"]:
             return "pause"
-        if self.state["campus"] and self.state["hits"]:
+        if (self.state["campus"] and self.state["hits"]) or self.state["school"]:
             return "alert"
         return "ok"
 
@@ -124,7 +138,7 @@ class GuardApp:
             return
         self.window = tk.Toplevel(self.root)
         self.window.title(f"校园网代理卫士 v{__version__}")
-        self.window.geometry("540x660")
+        self.window.geometry("540x780")
         self.window.resizable(False, False)
         self.window.protocol("WM_DELETE_WINDOW", self.window.withdraw)
         self.build_window(self.window)
@@ -169,24 +183,45 @@ class GuardApp:
             ttk.Checkbutton(box2, text=text, variable=var).grid(
                 row=0, column=col, padx=8, pady=5)
 
-        box3 = ttk.LabelFrame(w, text="行为")
+        box3 = ttk.LabelFrame(w, text="学校网站保护 (代理访问学校域名时警告, 与所在网络无关)")
         box3.pack(fill="x", **pad)
-        ttk.Label(box3, text="检测间隔(秒):").grid(row=0, column=0, sticky="w", padx=8, pady=4)
+        self.var_school = tk.BooleanVar()
+        ttk.Checkbutton(box3, text="启用", variable=self.var_school)\
+            .grid(row=0, column=0, sticky="w", padx=8, pady=3)
+        self.var_school_disable = tk.BooleanVar()
+        ttk.Checkbutton(box3, text="检测到时自动关闭系统代理", variable=self.var_school_disable)\
+            .grid(row=0, column=1, columnspan=2, sticky="w", padx=8)
+        ttk.Label(box3, text="学校域名:").grid(row=1, column=0, sticky="w", padx=8, pady=3)
+        self.var_school_domains = tk.StringVar()
+        ttk.Entry(box3, textvariable=self.var_school_domains, width=34)\
+            .grid(row=1, column=1, columnspan=2, padx=6, sticky="w")
+        ttk.Label(box3, text="Clash API:").grid(row=2, column=0, sticky="w", padx=8)
+        self.var_clash_api = tk.StringVar()
+        ttk.Entry(box3, textvariable=self.var_clash_api, width=24)\
+            .grid(row=2, column=1, padx=6, sticky="w")
+        ttk.Label(box3, text="密钥:").grid(row=2, column=1, sticky="e")
+        self.var_clash_secret = tk.StringVar()
+        ttk.Entry(box3, textvariable=self.var_clash_secret, width=14, show="*")\
+            .grid(row=2, column=2, padx=6, sticky="w")
+
+        box4 = ttk.LabelFrame(w, text="行为")
+        box4.pack(fill="x", **pad)
+        ttk.Label(box4, text="检测间隔(秒):").grid(row=0, column=0, sticky="w", padx=8, pady=4)
         self.var_interval = tk.IntVar()
-        ttk.Spinbox(box3, from_=1, to=3600, textvariable=self.var_interval, width=7)\
+        ttk.Spinbox(box4, from_=1, to=3600, textvariable=self.var_interval, width=7)\
             .grid(row=0, column=1, sticky="w")
-        ttk.Label(box3, text="警告间隔(秒):").grid(row=0, column=2, sticky="w", padx=8)
+        ttk.Label(box4, text="警告间隔(秒):").grid(row=0, column=2, sticky="w", padx=8)
         self.var_warn_interval = tk.IntVar()
-        ttk.Spinbox(box3, from_=5, to=86400, textvariable=self.var_warn_interval, width=7)\
+        ttk.Spinbox(box4, from_=5, to=86400, textvariable=self.var_warn_interval, width=7)\
             .grid(row=0, column=3, sticky="w")
         self.var_popup = tk.BooleanVar()
-        ttk.Checkbutton(box3, text="额外弹出阻塞式对话框", variable=self.var_popup)\
+        ttk.Checkbutton(box4, text="额外弹出阻塞式对话框", variable=self.var_popup)\
             .grid(row=1, column=0, columnspan=2, sticky="w", padx=8)
         self.var_disable_proxy = tk.BooleanVar()
-        ttk.Checkbutton(box3, text="违规时自动关闭系统代理", variable=self.var_disable_proxy)\
+        ttk.Checkbutton(box4, text="校园网违规时自动关闭系统代理", variable=self.var_disable_proxy)\
             .grid(row=2, column=0, columnspan=2, sticky="w", padx=8)
         self.var_kill = tk.BooleanVar()
-        ttk.Checkbutton(box3, text="违规时自动结束代理进程 (慎用!)", variable=self.var_kill)\
+        ttk.Checkbutton(box4, text="校园网违规时自动结束代理进程 (慎用!)", variable=self.var_kill)\
             .grid(row=2, column=2, columnspan=2, sticky="w", padx=8)
 
         btns = tk.Frame(w)
@@ -218,6 +253,9 @@ class GuardApp:
             lines += [f"  - {h}" for h in self.state["hits"]]
         elif self.state["campus"] is not None:
             lines.append("代理信号: 未检测到")
+        if self.state["school"]:
+            lines.append("学校网站保护信号:")
+            lines += [f"  - {h}" for h in self.state["school"]]
         self.lbl_detail.config(text="\n".join(lines))
 
     def load_settings_fields(self) -> None:
@@ -234,6 +272,11 @@ class GuardApp:
         self.var_popup.set(cfg.popup_dialog)
         self.var_disable_proxy.set(cfg.auto_disable_system_proxy)
         self.var_kill.set(cfg.auto_kill)
+        self.var_school.set(cfg.check_school_sites)
+        self.var_school_disable.set(cfg.school_site_disable_proxy)
+        self.var_school_domains.set(", ".join(cfg.school_domains))
+        self.var_clash_api.set(cfg.clash_api_url)
+        self.var_clash_secret.set(cfg.clash_api_secret)
 
     def flash_msg(self, text: str) -> None:
         if self.window and self.window.winfo_exists():
@@ -259,6 +302,11 @@ class GuardApp:
         cfg.popup_dialog = self.var_popup.get()
         cfg.auto_disable_system_proxy = self.var_disable_proxy.get()
         cfg.auto_kill = self.var_kill.get()
+        cfg.check_school_sites = self.var_school.get()
+        cfg.school_site_disable_proxy = self.var_school_disable.get()
+        cfg.school_domains = split(self.var_school_domains.get())
+        cfg.clash_api_url = self.var_clash_api.get().strip()
+        cfg.clash_api_secret = self.var_clash_secret.get().strip()
         return cfg
 
     def save_settings(self) -> None:
@@ -282,12 +330,16 @@ class GuardApp:
         cfg = load_config()
         campus, _why = on_campus(cfg)
         hits = detect_proxy(cfg) if campus else []
-        self.state.update(campus=campus, hits=hits)
+        school = check_school_sites(cfg) if cfg.check_school_sites else []
+        self.state.update(campus=campus, hits=hits, school=school)
         self.update_window_labels()
         self.refresh_ui()
         if campus and hits:
             warn(hits, cfg)
-        self.flash_msg("已按当前输入保存并重新检测" + (", 发现违规!" if campus and hits else ""))
+        if school:
+            warn(school, cfg, school_site=True)
+        self.flash_msg("已按当前输入保存并重新检测"
+                       + (", 发现违规!" if (campus and hits) or school else ""))
 
     def toggle_pause(self, _item=None, _icon=None) -> None:
         self.state["paused"] = not self.state["paused"]

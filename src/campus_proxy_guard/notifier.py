@@ -74,11 +74,16 @@ def send_messagebox(title: str, body: str) -> None:
     ctypes.windll.user32.MessageBoxW(0, body, title, flags)
 
 
-def apply_actions(cfg: Config) -> list[str]:
-    """执行已启用的违规处置动作, 返回结果描述列表(写入警告与日志)。"""
+def apply_actions(cfg: Config, school_site: bool = False) -> list[str]:
+    """执行已启用的违规处置动作, 返回结果描述列表(写入警告与日志)。
+
+    school_site=True 表示触发源是"代理访问学校域名": 按配置优先关闭系统代理
+    (学校网站在国内直连即可, 关代理是最直接有效的措施)。
+    """
     from .detector import disable_system_proxy, kill_proxy_processes
     taken: list[str] = []
-    if cfg.auto_disable_system_proxy:
+    disable = cfg.auto_disable_system_proxy or (school_site and cfg.school_site_disable_proxy)
+    if disable:
         try:
             disable_system_proxy()
             taken.append("已自动关闭系统代理")
@@ -96,12 +101,14 @@ def apply_actions(cfg: Config) -> list[str]:
     return taken
 
 
-def warn(triggers: list[str], cfg: Config, app_id: str = "campus-proxy-guard") -> None:
+def warn(triggers: list[str], cfg: Config, app_id: str = "campus-proxy-guard",
+         school_site: bool = False) -> None:
     """发出警告: 记日志 + 通知(或对话框); 按配置执行处置动作。"""
-    title = "【校园网代理警告】"
-    body = "检测到您正在校园网中使用代理:\n" + "\n".join(triggers[:5])
+    title = "【代理访问学校网站警告】" if school_site else "【校园网代理警告】"
+    body = ("检测到代理流量正在访问学校网站:\n" if school_site
+            else "检测到您正在校园网中使用代理:\n") + "\n".join(triggers[:5])
     logger.warning("%s %s", title, " | ".join(triggers))
-    actions = apply_actions(cfg)
+    actions = apply_actions(cfg, school_site=school_site)
     if actions:
         body += "\n\n已采取措施:\n" + "\n".join(actions)
     if cfg.popup_dialog:

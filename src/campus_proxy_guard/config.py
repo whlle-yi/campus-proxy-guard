@@ -74,6 +74,12 @@ class Config:
     # 违规处置(可叠加)
     auto_disable_system_proxy: bool = False  # 自动关闭 Windows 系统代理
     auto_kill: bool = False                  # 自动结束代理进程(慎用)
+    # 学校网站保护: 代理访问学校域名时警告(与是否在校园网无关)
+    check_school_sites: bool = True
+    school_domains: list[str] = field(default_factory=lambda: ["jxufe.edu.cn"])
+    school_site_disable_proxy: bool = True   # 检测到经代理访问学校域名时自动关闭系统代理
+    clash_api_url: str = "http://127.0.0.1:9090"   # Clash/Mihomo 外部控制 API, 留空禁用
+    clash_api_secret: str = ""                     # API 鉴权密钥(外部控制器设置了才有)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -92,6 +98,7 @@ def _validate(data: dict) -> tuple[dict, list[str]]:
                  if typing.get_origin(t) is list and typing.get_args(t) == (int,)}
     int_fields = {n for n, t in hints.items() if t is int}
     bool_fields = {n for n, t in hints.items() if t is bool}
+    str_fields = {n for n, t in hints.items() if t is str}
     for key, value in data.items():
         if key not in hints:
             warnings.append(f"未知配置项 '{key}' 已忽略")
@@ -116,6 +123,11 @@ def _validate(data: dict) -> tuple[dict, list[str]]:
                 valid[key] = value
             else:
                 warnings.append(f"配置项 '{key}' 应为 true/false, 已恢复默认值")
+        elif key in str_fields:
+            if isinstance(value, str):
+                valid[key] = value
+            else:
+                warnings.append(f"配置项 '{key}' 应为字符串, 已恢复默认值")
         else:
             warnings.append(f"未知配置项 '{key}' 已忽略")
     return valid, warnings

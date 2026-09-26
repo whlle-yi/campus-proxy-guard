@@ -21,6 +21,11 @@
 | `popup_dialog` | bool | `false` | 额外弹出阻塞式对话框(不依赖通知服务) |
 | `auto_disable_system_proxy` | bool | `false` | 违规时自动关闭 Windows 系统代理 |
 | `auto_kill` | bool | `false` | 违规时自动结束代理进程(慎用) |
+| `check_school_sites` | bool | `true` | 启用学校网站保护(与所在网络无关) |
+| `school_domains` | string[] | `["jxufe.edu.cn"]` | 受保护的学校域名(含子域) |
+| `school_site_disable_proxy` | bool | `true` | 检测到经代理访问学校域名时自动关闭系统代理 |
+| `clash_api_url` | string | `http://127.0.0.1:9090` | Clash/Mihomo 外部控制 API, 留空禁用该检测 |
+| `clash_api_secret` | string | `""` | API 鉴权密钥(外部控制器设置了才有) |
 
 > 三组校园网特征**全部留空 = 不监测**(首次安装的默认状态, 程序不会产生任何警告),
 > 填写任一特征后开始工作。
@@ -31,6 +36,19 @@
 2. 把 SSID 名称(或其关键词)填入 `campus_ssids`; 若校园网使用 `10.x` 网段,
    在网关/IP 前缀里填 `10.`;
 3. 保存, 等下一轮检测确认判定结果。
+
+## 学校网站保护
+
+检测两路信号, 任一命中即警告(标题为「代理访问学校网站警告」):
+
+1. **系统代理接管**: 系统代理开启且学校域名未被 `ProxyOverride` 绕过——
+   此时浏览器访问学校网站必然经过代理;
+2. **实时连接**(Clash/Mihomo 客户端): 轮询 `external-controller` 的 `/connections`
+   接口, 对经过代理的活动连接按学校域名匹配——TUN 模式同样有效。
+
+命中后按 `school_site_disable_proxy` 自动关闭系统代理(学校网站在国内, 直连即可)。
+TUN 模式下系统代理开关无效, 需依赖客户端的分流规则把学校域名加入 DIRECT, 或使用
+`auto_kill` 结束代理进程。
 
 ## 数据与日志
 

@@ -3,6 +3,13 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.6] - 2026-09-26
+
+### 新增
+- **学校网站保护**: 检测到代理访问学校域名(默认 `jxufe.edu.cn`, 可配置)时单独弹窗警告,
+  可自动关闭系统代理; 两路检测——系统代理接管判定 + Clash/Mihomo API 实时连接匹配(TUN 有效)
+- GUI 新增「学校网站保护」设置区(域名/Clash API 地址与密钥/自动关闭开关)
+
 ## [1.0.5] - 2026-09-26
 
 ### 变更
