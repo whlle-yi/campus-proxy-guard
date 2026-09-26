@@ -49,7 +49,7 @@ def make_icon(color: str) -> "Image.Image":
 class GuardApp:
     def __init__(self) -> None:
         self.state = {"campus": None, "hits": [], "why": "", "paused": False,
-                      "school": [], "school_potential": []}
+                      "school": [], "school_potential": [], "school_enabled": True}
         self._potential_toasted = False
         self.stop_event = threading.Event()
         self.root = tk.Tk()
@@ -93,6 +93,7 @@ class GuardApp:
                         school = potential = []
                     self.state["school"] = school
                     self.state["school_potential"] = potential
+                    self.state["school_enabled"] = cfg.check_school_sites
             except Exception:
                 logger.exception("监测轮询异常(继续运行)")
             self.refresh_ui()
@@ -111,6 +112,8 @@ class GuardApp:
             return "⚠ 校园网 + 代理 = 违规!", COLOR_ALERT
         if self.state["campus"]:
             return "校园网, 未检测到代理", COLOR_OK
+        if self.state["school_enabled"]:
+            return "非校园网(学校网站保护运行中)", COLOR_OK
         return "非校园网, 不监测", COLOR_OK
 
     def tray_title(self) -> str:
@@ -259,8 +262,10 @@ class GuardApp:
         if self.state["hits"]:
             lines.append("代理信号:")
             lines += [f"  - {h}" for h in self.state["hits"]]
-        elif self.state["campus"] is not None:
+        elif self.state["campus"]:
             lines.append("代理信号: 未检测到")
+        else:
+            lines.append("代理信号: 不参与判定(校园网防线仅在校园网生效)")
         if self.state["school"]:
             lines.append("学校网站保护信号:")
             lines += [f"  - {h}" for h in self.state["school"]]
@@ -343,7 +348,7 @@ class GuardApp:
         hits = detect_proxy(cfg) if campus else []
         school, potential = check_school_sites(cfg) if cfg.check_school_sites else ([], [])
         self.state.update(campus=campus, hits=hits, school=school,
-                          school_potential=potential)
+                          school_potential=potential, school_enabled=cfg.check_school_sites)
         self.update_window_labels()
         self.refresh_ui()
         if campus and hits:
