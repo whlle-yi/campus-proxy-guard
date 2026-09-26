@@ -25,7 +25,7 @@ from .autostart import autostart_enabled, autostart_set
 from .config import Config, load_config, save_config
 from .detector import check_school_sites, detect_proxy, on_campus
 from .netinfo import get_default_gateway, get_local_ips, get_wifi_ssid
-from .notifier import log_dir, setup_logging, warn
+from .notifier import log_dir, send_toast, setup_logging, warn
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,8 @@ def make_icon(color: str) -> "Image.Image":
 class GuardApp:
     def __init__(self) -> None:
         self.state = {"campus": None, "hits": [], "why": "", "paused": False,
-                      "school": []}
+                      "school": [], "school_potential": []}
+        self._potential_toasted = False
         self.stop_event = threading.Event()
         self.root = tk.Tk()
         self.root.withdraw()
@@ -78,13 +79,20 @@ class GuardApp:
                         last_warn = now
                     # 学校网站保护: 与是否在校园网无关
                     if cfg.check_school_sites:
-                        school = check_school_sites(cfg)
+                        school, potential = check_school_sites(cfg)
                         if school and now - last_school_warn >= cfg.warn_interval_seconds:
                             warn(school, cfg, school_site=True)
                             last_school_warn = now
+                        # 风险提示(可能但未实际访问)每次会话只弹一次说明, 不做处置
+                        if potential and not self._potential_toasted:
+                            self._potential_toasted = True
+                            send_toast("学校网站保护提示",
+                                       "系统代理已开启: 若访问学校网站将经过代理。\n"
+                                       "仅提示; 实际访问时才会警告并处置。")
                     else:
-                        school = []
+                        school = potential = []
                     self.state["school"] = school
+                    self.state["school_potential"] = potential
             except Exception:
                 logger.exception("监测轮询异常(继续运行)")
             self.refresh_ui()
@@ -256,6 +264,9 @@ class GuardApp:
         if self.state["school"]:
             lines.append("学校网站保护信号:")
             lines += [f"  - {h}" for h in self.state["school"]]
+        elif self.state.get("school_potential"):
+            lines.append("风险提示(未实际访问):")
+            lines += [f"  - {h}" for h in self.state["school_potential"]]
         self.lbl_detail.config(text="\n".join(lines))
 
     def load_settings_fields(self) -> None:
@@ -330,8 +341,9 @@ class GuardApp:
         cfg = load_config()
         campus, _why = on_campus(cfg)
         hits = detect_proxy(cfg) if campus else []
-        school = check_school_sites(cfg) if cfg.check_school_sites else []
-        self.state.update(campus=campus, hits=hits, school=school)
+        school, potential = check_school_sites(cfg) if cfg.check_school_sites else ([], [])
+        self.state.update(campus=campus, hits=hits, school=school,
+                          school_potential=potential)
         self.update_window_labels()
         self.refresh_ui()
         if campus and hits:

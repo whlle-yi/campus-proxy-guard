@@ -268,19 +268,24 @@ def parse_clash_connections(data: dict, domains: list[str]) -> list[str]:
     return sorted(matched)
 
 
-def check_school_sites(cfg: Config) -> list[str]:
-    """检测代理是否正在/将要接管学校域名流量, 返回信号列表。"""
+def check_school_sites(cfg: Config) -> tuple[list[str], list[str]]:
+    """检测学校域名相关代理风险, 返回 (实际违规, 风险提示)。
+
+    实际违规: Clash API 观察到正在访问学校域名的连接 —— 会触发警告与处置;
+    风险提示: 系统代理开启且未放行学校域名 —— 仅提示, 不代表正在访问。
+    """
     domains = [d for d in cfg.school_domains if d.strip()]
     if not domains:
-        return []
-    hits: list[str] = []
+        return [], []
+    actual: list[str] = []
+    potential: list[str] = []
 
-    # 1) 系统代理形态: 代理开启且学校域名未被绕过 -> 学校网站流量必然经代理
+    # 1) 系统代理形态: 代理开启且学校域名未被绕过 -> 若访问学校网站将经代理(仅提示)
     if cfg.check_system_proxy:
         enabled, override = _get_system_proxy_state()
         risky = school_domains_at_risk(enabled, override, domains)
         if risky:
-            hits.append("系统代理已开启且未放行学校域名: " + ", ".join(risky))
+            potential.append("系统代理已开启且未放行学校域名: " + ", ".join(risky))
 
     # 2) Clash/Mihomo 客户端形态: 查询实时连接(对 TUN 模式同样有效)
     if cfg.clash_api_url:
@@ -292,8 +297,8 @@ def check_school_sites(cfg: Config) -> list[str]:
             with urllib.request.urlopen(req, timeout=2) as resp:
                 matched = parse_clash_connections(json.load(resp), domains)
             if matched:
-                hits.append("检测到经代理访问学校域名: " + ", ".join(matched))
+                actual.append("检测到经代理访问学校域名: " + ", ".join(matched))
         except (OSError, ValueError, json.JSONDecodeError):
             pass  # 客户端未运行/无 API/鉴权失败, 静默跳过
 
-    return hits
+    return actual, potential

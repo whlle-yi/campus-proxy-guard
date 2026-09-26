@@ -89,4 +89,20 @@ def test_check_school_sites_no_domains():
 
     cfg = Config()
     cfg.school_domains = []
-    assert check_school_sites(cfg) == []
+    assert check_school_sites(cfg) == ([], [])
+
+
+def test_system_proxy_takeover_is_potential_not_violation():
+    """系统代理接管只是风险提示, 不得进入实际违规列表(否则挂梯子即误报)。"""
+    from unittest import mock
+
+    from campus_proxy_guard import detector
+    from campus_proxy_guard.config import Config
+
+    cfg = Config()  # 默认含 clash_api_url, 但下方把请求 mock 掉
+    with mock.patch.object(detector, "_get_system_proxy_state",
+                           return_value=(True, "")), \
+         mock.patch("urllib.request.urlopen", side_effect=OSError):
+        actual, potential = detector.check_school_sites(cfg)
+    assert actual == []
+    assert any("系统代理" in p for p in potential)
