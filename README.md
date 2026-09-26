@@ -10,12 +10,17 @@
 
 ### 安装(两种方式任选)
 
-**方式 A: 免安装 exe(推荐给不用 Python 的用户)**
+**方式 A: 安装包(推荐)**
 
 1. 打开 [Releases](https://github.com/whlle-yi/campus-proxy-guard/releases) 页面;
-2. 下载最新的 `CampusProxyGuard-vX.X.X-win64.zip` 并解压;
-3. 双击 `CampusProxyGuard.exe`——右下角托盘出现绿/灰色圆点图标, 开始工作;
-4. 想开机自启: 右键托盘图标 → 「开机自启: 已关闭」点一下即可。
+2. 下载最新的 `CampusProxyGuard-Setup-vX.X.X.exe`;
+3. 双击安装: 可勾选创建桌面快捷方式、开机自启, 支持在控制面板正常卸载;
+4. 安装即完成——托盘出现绿/灰色圆点图标, 开始工作。
+
+> 首次运行如出现"Windows 已保护你的电脑": 点 **更多信息 → 仍要运行**。
+> 本程序开源、未购买代码签名证书, 独立软件首次分发均有此提示, 与病毒无关。
+
+**方式 B: 绿色便携版**: 下载 `CampusProxyGuard-vX.X.X-win64.zip` 解压即用, 不写注册表。
 
 **方式 B: Python 安装(适合开发者)**
 

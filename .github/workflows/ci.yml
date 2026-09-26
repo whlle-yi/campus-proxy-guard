@@ -46,8 +46,17 @@ jobs:
           Copy-Item README.md dist\
           Compress-Archive -Path dist\CampusProxyGuard.exe, dist\README.md `
             -DestinationPath CampusProxyGuard-${{ github.ref_name }}-win64.zip -Force
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
+          $ver = $env:GITHUB_REF_NAME -replace '^v', ''
+          iscc /DAPP_VERSION=$ver installer.iss
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: CampusProxyGuard-*.zip
+          files: |
+            CampusProxyGuard-*.zip
+            dist/CampusProxyGuard-Setup-*.exe
           generate_release_notes: true

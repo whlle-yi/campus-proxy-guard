@@ -3,6 +3,13 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.4] - 2026-09-26
+
+### 新增
+- **安装包分发**: Inno Setup 构建的 `CampusProxyGuard-Setup-x.y.z.exe`, 提供安装向导/桌面与开始菜单快捷方式/可选开机自启/控制面板卸载; 绿色 zip 保留作为便携版
+- 卸载前自动结束运行中的程序; 卸载保留用户配置(%APPDATA%)
+- 默认安装位置: 有 D 盘时为 `D:\CampusProxyGuard`(D 盘根目录普通权限可写; D:\Program Files 受系统保护), 无 D 盘回退 `%LOCALAPPDATA%\Programs`; 向导中可自行修改
+
 ## [1.0.3] - 2026-09-26
 
 ### 修复
