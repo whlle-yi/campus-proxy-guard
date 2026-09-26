@@ -149,14 +149,14 @@ class GuardApp:
             return
         self.window = tk.Toplevel(self.root)
         self.window.title(f"校园网代理卫士 v{__version__}")
-        self.window.geometry("540x760")
         self.window.resizable(False, False)
         self.window.protocol("WM_DELETE_WINDOW", self.window.withdraw)
         self.build_window(self.window)
         self.update_window_labels()
         self.load_settings_fields()
         self.window.update_idletasks()
-        self.window.geometry("")  # 高度随内容自适应, 消除底部空白
+        # 宽度固定 540, 高度随内容自适应(消除底部空白)
+        self.window.geometry(f"540x{self.window.winfo_reqheight()}")
 
     def build_window(self, w: tk.Toplevel) -> None:
         pad = {"padx": 14, "pady": 4}

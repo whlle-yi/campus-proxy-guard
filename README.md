@@ -2,13 +2,15 @@
 
 # campus-proxy-guard 校园网代理卫士
 
-**连接校园网时一旦开启代理(梯子), 立即弹窗警告 —— 帮你管住自己**
+**校园网挂梯子立即警告; 代理访问学校网站自动切断代理 —— 双防线帮你管住自己**
 
 [![CI](https://github.com/whlle-yi/campus-proxy-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/whlle-yi/campus-proxy-guard/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/whlle-yi/campus-proxy-guard)](https://github.com/whlle-yi/campus-proxy-guard/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [下载安装](https://github.com/whlle-yi/campus-proxy-guard/releases) · [配置参考](docs/CONFIG.md) · [问题反馈](https://github.com/whlle-yi/campus-proxy-guard/issues)
+
+<img src="docs/screenshot.png" alt="主界面" width="520">
 
 </div>
 
@@ -25,7 +27,7 @@
 
 ## 快速开始
 
-1. 从 [Releases](https://github.com/whlle-yi/campus-proxy-guard/releases) 下载 `CampusProxyGuard-Setup-x.y.z.exe` 并安装(绿色便携版 zip 亦提供; 开发者可 `pip install campus-proxy-guard`);
+1. 从 [Releases](https://github.com/whlle-yi/campus-proxy-guard/releases) 下载 `CampusProxyGuard-Setup-x.y.z.exe` 并安装(绿色便携版 zip 亦提供; 开发者可从源码 `pip install -e .`);
 2. 双击托盘图标, 把学校 Wi-Fi 名称填入「校园网识别特征」并保存;
 3. 完成。之后后台自动工作: 在校园网挂梯子就会弹警告。
 
@@ -44,10 +46,12 @@
 
 ## 从源码运行
 
+要求: Windows 10/11, Python ≥ 3.10。
+
 ```bat
 pip install -e .[dev]
 python -m campus_proxy_guard --status   # 手动检测
-pytest --cov=campus_proxy_guard         # 测试(42 例)
+pytest --cov=campus_proxy_guard         # 测试(59 例)
 ruff check . && mypy src                # lint 与类型检查
 ```
 
