@@ -62,10 +62,12 @@ def test_valid_partial_overrides(tmp_path):
         "campus_ssids": ["jxufe-wifi", "NB的631"],
         "popup_dialog": True,
         "check_interval_seconds": 30,
+        "proxy_ports": [7890, 12345],
     }))
     assert cfg.campus_ssids == ["jxufe-wifi", "NB的631"]
     assert cfg.popup_dialog is True
     assert cfg.check_interval_seconds == 30
+    assert cfg.proxy_ports == [7890, 12345]  # list[int] 字段同样可覆盖
     # 未提到的字段保持默认
     assert cfg.auto_kill is False
 

@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import shutil
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -79,29 +79,43 @@ class Config:
 
 def _validate(data: dict) -> tuple[dict, list[str]]:
     """逐字段校验: 类型不符的字段丢弃并告警, 未知字段忽略并告警。"""
+    import typing
+
     warnings: list[str] = []
     valid: dict = {}
-    str_lists = {f.name for f in fields(Config) if f.type.startswith("list[str]")}
-    int_fields = {f.name for f in fields(Config) if f.type == "int"}
-    bool_fields = {f.name for f in fields(Config) if f.type == "bool"}
+    hints = typing.get_type_hints(Config)
+    str_lists = {n for n, t in hints.items()
+                 if typing.get_origin(t) is list and typing.get_args(t) == (str,)}
+    int_lists = {n for n, t in hints.items()
+                 if typing.get_origin(t) is list and typing.get_args(t) == (int,)}
+    int_fields = {n for n, t in hints.items() if t is int}
+    bool_fields = {n for n, t in hints.items() if t is bool}
     for key, value in data.items():
-        if key not in str_lists | int_fields | bool_fields:
+        if key not in hints:
             warnings.append(f"未知配置项 '{key}' 已忽略")
         elif key in str_lists:
             if isinstance(value, list) and all(isinstance(v, str) for v in value):
                 valid[key] = value
             else:
                 warnings.append(f"配置项 '{key}' 应为字符串列表, 已恢复默认值")
+        elif key in int_lists:
+            if isinstance(value, list) and all(
+                    isinstance(v, int) and not isinstance(v, bool) for v in value):
+                valid[key] = value
+            else:
+                warnings.append(f"配置项 '{key}' 应为整数列表, 已恢复默认值")
         elif key in int_fields:
             if isinstance(value, int) and not isinstance(value, bool) and value > 0:
                 valid[key] = value
             else:
                 warnings.append(f"配置项 '{key}' 应为正整数, 已恢复默认值")
-        else:  # bool_fields
+        elif key in bool_fields:
             if isinstance(value, bool):
                 valid[key] = value
             else:
                 warnings.append(f"配置项 '{key}' 应为 true/false, 已恢复默认值")
+        else:
+            warnings.append(f"未知配置项 '{key}' 已忽略")
     return valid, warnings
 
 

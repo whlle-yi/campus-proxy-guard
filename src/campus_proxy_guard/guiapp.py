@@ -29,7 +29,7 @@ from .notifier import log_dir, setup_logging, warn
 
 logger = logging.getLogger(__name__)
 
-MUTEX_NAME = "CampusProxyGuardSingleInstance"
+MUTEX_EVENT_NAME = "CampusProxyGuardActivateEvent"
 ERROR_ALREADY_EXISTS = 183
 
 COLOR_OK = "#27ae60"
@@ -237,7 +237,9 @@ class GuardApp:
     # --- 按钮动作 ---
     def save_settings(self) -> None:
         def split(s: str) -> list[str]:
-            return [x.strip() for x in s.split(",") if x.strip()]
+            # 兼容中英文逗号/顿号/分号分隔
+            import re
+            return [x.strip() for x in re.split(r"[,，、;；]", s) if x.strip()]
 
         cfg = load_config()
         try:
@@ -322,20 +324,42 @@ class GuardApp:
         self.root.mainloop()
 
 
-def _single_instance() -> bool:
-    """命名互斥锁防止同时开多个托盘实例。"""
-    ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
-    return ctypes.windll.kernel32.GetLastError() != ERROR_ALREADY_EXISTS
+def _become_primary(on_activate) -> bool:
+    """成为主实例返回 True; 若已有主实例则唤起其窗口并返回 False。
+
+    用 Win32 命名事件实现: 主实例创建事件并起线程等待信号;
+    后来者 SetEvent 通知主实例弹出主窗口后自行退出。
+    """
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.CreateEventW(None, False, False, MUTEX_EVENT_NAME)
+    if kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+        kernel32.SetEvent(handle)
+        kernel32.CloseHandle(handle)
+        return False
+
+    def watch() -> None:
+        WAIT_OBJECT_0 = 0
+        INFINITE = 0xFFFFFFFF
+        while True:
+            if kernel32.WaitForSingleObject(handle, INFINITE) == WAIT_OBJECT_0:
+                try:
+                    on_activate()
+                except Exception:
+                    logger.exception("唤起主窗口失败")
+
+    threading.Thread(target=watch, daemon=True).start()
+    return True
 
 
 def run_gui() -> int:
     if pystray is None:
         print("缺少 GUI 依赖: pip install pystray Pillow")
         return 1
-    if not _single_instance():
-        logger.warning("已有托盘实例在运行, 本次启动退出")
+    app = GuardApp()
+    if not _become_primary(lambda: app.root.after(0, app.show_window)):
+        logger.info("已有托盘实例在运行, 已通知其弹出主窗口")
         return 0
-    GuardApp().run()
+    app.run()
     return 0
 
 
