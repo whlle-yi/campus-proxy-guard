@@ -107,9 +107,19 @@ git add -A && git commit -m "..." && python push_via_api.py
 | `check_interval_seconds` | 检测间隔 | `10` |
 | `warn_interval_seconds` | 警告通知最小间隔(防刷屏) | `60` |
 | `popup_dialog` | 额外弹出阻塞式对话框 | `false` |
-| `auto_kill` | 自动结束代理进程(**慎用**) | `false` |
+| `auto_disable_system_proxy` | 违规时自动关闭 Windows 系统代理 | `false` |
+| `auto_kill` | 违规时自动结束代理进程(**慎用**) | `false` |
 
 > **怎么知道该填什么?** 连上校园网后运行 `python -m campus_proxy_guard --status`(或看 GUI 主窗口), 把显示的 SSID / 网关 / 本机 IP 填进配置即可。三组条件全部留空 = 任何网络都监测(最严格)。
+
+## 违规处置(可选)
+
+默认只警告; 可在 GUI「行为」区(或配置文件)启用处置动作, 可叠加:
+
+- **自动关闭系统代理**(`auto_disable_system_proxy`): 把 Windows 系统代理关掉并立即生效, 流量不再走代理——对绝大多数"系统代理模式"梯子最有效, 且不动对方进程;
+- **自动结束代理进程**(`auto_kill`, 慎用): 直接杀掉 Clash/v2ray 等进程。TUN/管理员权限运行的进程可能杀不掉, 失败原因会写进警告和日志, 建议管理员身份运行本程序。
+
+两个动作都开启 = 双保险。警告通知里会写明具体采取了哪些措施。
 
 ## 工作原理
 

@@ -182,9 +182,12 @@ class GuardApp:
         self.var_popup = tk.BooleanVar()
         ttk.Checkbutton(box3, text="额外弹出阻塞式对话框", variable=self.var_popup)\
             .grid(row=1, column=0, columnspan=2, sticky="w", padx=8)
+        self.var_disable_proxy = tk.BooleanVar()
+        ttk.Checkbutton(box3, text="违规时自动关闭系统代理", variable=self.var_disable_proxy)\
+            .grid(row=2, column=0, columnspan=2, sticky="w", padx=8)
         self.var_kill = tk.BooleanVar()
-        ttk.Checkbutton(box3, text="自动结束代理进程 (慎用!)", variable=self.var_kill)\
-            .grid(row=1, column=2, columnspan=2, sticky="w", padx=8)
+        ttk.Checkbutton(box3, text="违规时自动结束代理进程 (慎用!)", variable=self.var_kill)\
+            .grid(row=2, column=2, columnspan=2, sticky="w", padx=8)
 
         btns = tk.Frame(w)
         btns.pack(pady=12)
@@ -227,6 +230,7 @@ class GuardApp:
         self.var_interval.set(cfg.check_interval_seconds)
         self.var_warn_interval.set(cfg.warn_interval_seconds)
         self.var_popup.set(cfg.popup_dialog)
+        self.var_disable_proxy.set(cfg.auto_disable_system_proxy)
         self.var_kill.set(cfg.auto_kill)
 
     def flash_msg(self, text: str) -> None:
@@ -253,6 +257,7 @@ class GuardApp:
             cfg.check_interval_seconds = int(self.var_interval.get())
             cfg.warn_interval_seconds = int(self.var_warn_interval.get())
             cfg.popup_dialog = self.var_popup.get()
+            cfg.auto_disable_system_proxy = self.var_disable_proxy.get()
             cfg.auto_kill = self.var_kill.get()
             save_config(cfg)
         except (OSError, ValueError) as e:

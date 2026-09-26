@@ -3,6 +3,15 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.2] - 2026-09-25
+
+### 新增
+- 违规处置动作: `auto_disable_system_proxy` 自动关闭 Windows 系统代理并即时生效(新增, 对系统代理模式最有效)
+- 警告通知与日志中写明已采取的处置措施及失败原因
+
+### 修复
+- `auto_kill` 结束进程失败(权限不足/超时)此前被静默吞掉, 现在完整记录并在警告中提示
+
 ## [1.0.1] - 2026-09-25
 
 ### 修复

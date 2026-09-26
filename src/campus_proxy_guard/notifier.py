@@ -74,18 +74,37 @@ def send_messagebox(title: str, body: str) -> None:
     ctypes.windll.user32.MessageBoxW(0, body, title, flags)
 
 
+def apply_actions(cfg: Config) -> list[str]:
+    """执行已启用的违规处置动作, 返回结果描述列表(写入警告与日志)。"""
+    from .detector import disable_system_proxy, kill_proxy_processes
+    taken: list[str] = []
+    if cfg.auto_disable_system_proxy:
+        try:
+            disable_system_proxy()
+            taken.append("已自动关闭系统代理")
+        except OSError as e:
+            logger.error("关闭系统代理失败: %s", e)
+            taken.append("关闭系统代理失败(见日志)")
+    if cfg.auto_kill:
+        killed, failed = kill_proxy_processes(cfg)
+        if killed:
+            logger.warning("auto_kill: 已结束进程 -> %s", ", ".join(killed))
+            taken.append("已结束进程: " + ", ".join(k.split(" (")[0] for k in killed))
+        for f in failed:
+            logger.warning("auto_kill: %s", f)
+            taken.append("未能结束: " + f)
+    return taken
+
+
 def warn(triggers: list[str], cfg: Config, app_id: str = "campus-proxy-guard") -> None:
-    """发出警告: 记日志 + 通知(或对话框); 可选自动结束代理进程。"""
+    """发出警告: 记日志 + 通知(或对话框); 按配置执行处置动作。"""
     title = "【校园网代理警告】"
     body = "检测到您正在校园网中使用代理:\n" + "\n".join(triggers[:5])
     logger.warning("%s %s", title, " | ".join(triggers))
+    actions = apply_actions(cfg)
+    if actions:
+        body += "\n\n已采取措施:\n" + "\n".join(actions)
     if cfg.popup_dialog:
         send_messagebox(title, body)
     elif not send_toast(title, body, app_id):
         send_messagebox(title, body)
-    if cfg.auto_kill:
-        from .detector import kill_proxy_processes
-        killed = kill_proxy_processes(cfg)
-        if killed:
-            logger.warning("auto_kill: 已结束进程 -> %s", ", ".join(killed))
-            send_toast("已自动关闭代理进程", ", ".join(killed), app_id)

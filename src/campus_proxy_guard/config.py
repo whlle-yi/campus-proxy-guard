@@ -71,7 +71,9 @@ class Config:
     check_interval_seconds: int = 10
     warn_interval_seconds: int = 60
     popup_dialog: bool = False
-    auto_kill: bool = False
+    # 违规处置(可叠加)
+    auto_disable_system_proxy: bool = False  # 自动关闭 Windows 系统代理
+    auto_kill: bool = False                  # 自动结束代理进程(慎用)
 
     def to_dict(self) -> dict:
         return asdict(self)

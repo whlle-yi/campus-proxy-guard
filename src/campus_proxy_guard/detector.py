@@ -172,17 +172,39 @@ def detect_proxy(cfg: Config) -> list[str]:
     return hits
 
 
-def kill_proxy_processes(cfg: Config) -> list[str]:
+def kill_proxy_processes(cfg: Config) -> tuple[list[str], list[str]]:
+    """结束所有匹配的代理进程, 返回 (已结束, 失败原因列表)。"""
     if not psutil:
-        return []
+        return [], []
     keywords = [k.lower() for k in cfg.proxy_process_names]
     killed: list[str] = []
+    failed: list[str] = []
     for p in psutil.process_iter(["name"]):
         try:
             name = p.info["name"] or ""
-            if match_proc(Path(name).stem, keywords):
+            if not match_proc(Path(name).stem, keywords):
+                continue
+            try:
                 p.kill()
+                p.wait(timeout=5)
                 killed.append(f"{name} (PID {p.pid})")
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            except psutil.AccessDenied:
+                failed.append(f"{name} (PID {p.pid}): 权限不足, 请以管理员运行本程序")
+            except psutil.TimeoutExpired:
+                failed.append(f"{name} (PID {p.pid}): 结束超时")
+        except (psutil.NoSuchProcess, psutil.ZombieProcess):
             continue
-    return killed
+    return killed, failed
+
+
+def disable_system_proxy() -> None:
+    """关闭 Windows 系统代理(ProxyEnable=0)并通知系统立即生效。"""
+    import ctypes
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, SYSTEM_PROXY_KEY, 0,
+                        winreg.KEY_SET_VALUE) as k:
+        winreg.SetValueEx(k, "ProxyEnable", 0, winreg.REG_DWORD, 0)
+    # 通知 WinINet 设置已变更并刷新, 免重启浏览器
+    internet_set_option = ctypes.windll.wininet.InternetSetOptionW
+    internet_set_option(None, 39, None, 0)  # INTERNET_OPTION_SETTINGS_CHANGED
+    internet_set_option(None, 37, None, 0)  # INTERNET_OPTION_REFRESH
