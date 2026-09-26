@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "campus-proxy-guard"
+version = "1.0.0"
+description = "校园网代理卫士: 连接校园网时检测到本机开启代理立即弹窗警告 / Warn when a proxy is active on campus network (Windows)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "whlle-yi" }]
+keywords = ["campus-network", "proxy", "guard", "windows", "tray"]
+classifiers = [
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows :: 10",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = [
+    "psutil>=5.9",
+    "pystray>=0.19",
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "pyinstaller>=6.0",
+]
+
+[project.scripts]
+campus-proxy-guard = "campus_proxy_guard.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["campus_proxy_guard"]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试样本模拟真实命令输出, 行尾空格是有意的
+"tests/*" = ["W291"]
+# PowerShell Toast 模板为原样字符串, 无法换行
+"src/campus_proxy_guard/notifier.py" = ["E501"]

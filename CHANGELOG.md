@@ -1,0 +1,18 @@
+# 更新日志
+
+格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [1.0.0] - 2026-09-25
+
+首个正式版本。
+
+### 新增
+- 校园网识别: Wi-Fi SSID 关键词 / 默认网关 IP 前缀 / 本机 IP 前缀, 任一命中即生效
+- 代理识别: 系统代理与 PAC / 环境变量 / 代理客户端进程(分词匹配防误报) / 常见本地监听端口
+- 系统托盘 GUI: 绿/红/灰三态图标, 主窗口可视化配置, 一键开关开机自启, 单实例锁
+- CLI: `--status` / `--once` / `--test-toast` / `--daemon`, 便于脚本化使用
+- 配置保存于 `%APPDATA%\CampusProxyGuard`, 首次运行自动迁移旧版程序目录配置
+- 轮转日志(%APPDATA%\CampusProxyGuard\logs, 1MB x 3)
+- `python push_via_api.py`: github.com 直连受阻时经 API 推送快照提交
+- CI: pytest + ruff 自动检查; 打 v* 标签自动构建 exe 并发布 GitHub Release
