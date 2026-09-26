@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.3] - 2026-09-26
+
+### 修复
+- **exe 启动即崩溃**: PyInstaller 入口误用含相对导入的 __main__.py, 导致 v1.0.0~v1.0.2 的发布包全部无法使用; 改用绝对导入的 launcher.py 作为打包入口
+- 上述三个版本的发布附件已撤下
+
 ## [1.0.2] - 2026-09-25
 
 ### 新增

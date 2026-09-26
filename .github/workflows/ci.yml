@@ -40,7 +40,7 @@ jobs:
           pyinstaller --noconsole --onefile --clean
           --name CampusProxyGuard
           --icon icon.ico
-          src/campus_proxy_guard/__main__.py
+          launcher.py
       - name: Package zip
         run: |
           Copy-Item README.md dist\
